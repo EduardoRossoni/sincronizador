@@ -83,7 +83,7 @@ const TabletConnectionButton: React.FC = () => {
             : 'Abrir Conexão Tablet'}
       </button>
 
-      {isServerRunning && !error && (
+      {/* {isServerRunning && !error && (
         <div
           style={{
             marginTop: '10px',
@@ -105,11 +105,13 @@ const TabletConnectionButton: React.FC = () => {
             <ul style={{ marginLeft: '20px', marginTop: '5px' }}>
               <li>GET /api/status - Verificar status do servidor</li>
               <li>GET /api/tratos - Obter lista de tratos ({transformedData.length} registros)</li>
-              <li>POST /api/tratos - Enviar novos tratos</li>
+              <li>
+                POST /api/tratos - Enviar dados do tablet (formato: {'{'} tratos: [...], batidas: [...], leituraFeitaSinc: {'{...}'} {'}'})
+              </li>
             </ul>
           </div>
         </div>
-      )}
+      )} */}
 
       {error && (
         <div

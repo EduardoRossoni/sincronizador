@@ -1,8 +1,39 @@
 import express from 'express'
 import cors from 'cors'
-import { app} from 'electron'
+import { app } from 'electron'
 import { Server } from 'http'
 import { networkInterfaces } from 'os'
+
+// Interfaces para o modelo de dados
+export interface Trato {
+  id: number
+  data: string | Date
+  external_id: number
+  quantidade: number
+  usa_horario: boolean
+  numero_trato: number
+  [key: string]: unknown
+}
+
+export interface Batida {
+  [key: string]: unknown
+}
+
+export interface LeituraFeitaSinc {
+  [key: string]: unknown
+}
+
+export interface PostData {
+  tratos: Trato[]
+  batidas: Batida[]
+  leituraFeitaSinc: LeituraFeitaSinc
+}
+
+export interface PostData {
+  tratos: Trato[]
+  batidas: Batida[]
+  leituraFeitaSinc: LeituraFeitaSinc
+}
 
 export class TabletServer {
   private app = express()
@@ -26,6 +57,37 @@ export class TabletServer {
     console.log(`Dados transformados atualizados: ${this.transformedData.length} registros`)
   }
 
+  // Método para emitir evento com dados do Gepec para o renderer process
+  emitGepecData(data: PostData): void {
+    console.log('Emitindo dados do Gepec para o renderer process:')
+    console.log('Tratos recebidos:', data.tratos?.length || 0)
+    console.log('Batidas recebidas:', data.batidas?.length || 0)
+    console.log('Leitura Feita Sinc:', data.leituraFeitaSinc)
+
+    // Garantir que os arrays estão presentes mesmo que vazios
+    const normalizedData: PostData = {
+      tratos: Array.isArray(data.tratos) ? data.tratos : [],
+      batidas: Array.isArray(data.batidas) ? data.batidas : [],
+      leituraFeitaSinc: data.leituraFeitaSinc || {}
+    }
+
+    // Enviamos o evento para o processo principal (index.ts)
+    // que então o encaminhará para o renderer
+    if (this.onGepecDataReceived) {
+      console.log('Chamando callback onGepecDataReceived com dados normalizados')
+      try {
+        this.onGepecDataReceived(normalizedData)
+      } catch (error) {
+        console.error('Erro ao chamar callback onGepecDataReceived:', error)
+      }
+    } else {
+      console.warn('Nenhum callback onGepecDataReceived registrado')
+    }
+  }
+
+  // Callback para quando dados do Gepec são recebidos
+  onGepecDataReceived: ((data: PostData) => void) | null = null
+
   private setupRoutes(): void {
     // Endpoint para obter dados dos tratos convertidos do DataService
     this.app.get('/api/tratos', (req, res) => {
@@ -33,20 +95,54 @@ export class TabletServer {
       res.json(this.transformedData)
     })
 
+    // Endpoint POST atualizado para receber o novo formato de dados
     this.app.post('/api/tratos', (req, res) => {
-      const data = req.body
-      console.log('Dados recebidos:', data)
+      try {
+        const data = req.body as PostData
+        console.log('Dados recebidos:', data)
 
-      this.tratoData.push({
-        ...data,
-        receivedAt: new Date().toISOString()
-      })
+        // Verificar se os dados estão no formato esperado
+        if (data && (data.tratos || data.batidas || data.leituraFeitaSinc)) {
+          // Garantir que os arrays estão presentes mesmo que vazios
+          const normalizedData: PostData = {
+            tratos: Array.isArray(data.tratos) ? data.tratos : [],
+            batidas: Array.isArray(data.batidas) ? data.batidas : [],
+            leituraFeitaSinc: data.leituraFeitaSinc || {}
+          }
 
-      res.json({
-        success: true,
-        message: 'Dados recebidos com sucesso!',
-        timestamp: new Date().toISOString()
-      })
+          // Processar os dados recebidos e emitir para o renderer
+          this.emitGepecData(normalizedData)
+
+          // Armazenar os dados recebidos com timestamp
+          this.tratoData.push({
+            ...normalizedData,
+            receivedAt: new Date().toISOString()
+          })
+
+          res.json({
+            success: true,
+            message: 'Dados recebidos com sucesso!',
+            timestamp: new Date().toISOString(),
+            tratos: normalizedData.tratos.length,
+            batidas: normalizedData.batidas.length
+          })
+        } else {
+          // Dados em formato inválido
+          res.status(400).json({
+            success: false,
+            message:
+              'Formato de dados inválido. Esperado: { tratos: [], batidas: [], leituraFeitaSinc: {} }',
+            timestamp: new Date().toISOString()
+          })
+        }
+      } catch (error) {
+        console.error('Erro ao processar a requisição:', error)
+        res.status(500).json({
+          success: false,
+          message: 'Erro ao processar a requisição',
+          timestamp: new Date().toISOString()
+        })
+      }
     })
 
     this.app.get('/api/status', (req, res) => {

@@ -1,7 +1,8 @@
 import './assets/main.css'
 import BuscarDadosGepec from './components/BuscarDadosGepec'
-import DadosSalvosButton from './components/DadosSalvosButton';
-import TabletConnectionButton from './components/TabletConnectionButton';
+import DadosSalvosButton from './components/DadosSalvosButton'
+import TabletConnectionButton from './components/TabletConnectionButton'
+import GepecDataViewer from './components/GepecDataViewer'
 
 import './Main.css'
 
@@ -16,6 +17,8 @@ function App(): JSX.Element {
         <TabletConnectionButton />
 
         <DadosSalvosButton />
+
+        <GepecDataViewer />
       </div>
     </div>
   )

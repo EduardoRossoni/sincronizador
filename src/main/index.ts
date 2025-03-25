@@ -2,7 +2,7 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { TabletServer } from './server'
+import { TabletServer, PostData } from './server'
 
 // Instância global do servidor
 const tabletServer = new TabletServer()
@@ -29,6 +29,12 @@ function createWindow(): void {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
+
+  // Configurar receptor de dados do Gepec
+  tabletServer.onGepecDataReceived = (data: PostData): void => {
+    // Quando o servidor receber dados, enviar para o renderer process
+    mainWindow.webContents.send('gepec-data:received', data)
+  }
 
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
