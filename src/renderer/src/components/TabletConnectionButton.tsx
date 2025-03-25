@@ -1,21 +1,30 @@
 import React, { useState, useEffect } from 'react'
+import { useDataService } from './useDataService'
 
 const TabletConnectionButton: React.FC = () => {
   const [isServerRunning, setIsServerRunning] = useState<boolean>(false)
   const [loading, setLoading] = useState<boolean>(false)
   const [serverPort, setServerPort] = useState<number>(3000)
+  const [ipAddress, setIpAddress] = useState<string>('127.0.0.1')
   const [error, setError] = useState<string | null>(null)
+  const { transformedData } = useDataService()
 
-  // Verificar o status inicial do servidor
+  // Verificar o status inicial do servidor e enviar dados quando disponíveis
   useEffect(() => {
     checkServerStatus()
-  }, [])
+
+    // Enviar dados transformados para o processo principal sempre que mudarem
+    if (transformedData && transformedData.length > 0) {
+      window.api.dataService.updateTransformedData(transformedData)
+    }
+  }, [transformedData])
 
   const checkServerStatus = async (): Promise<void> => {
     try {
       const status = await window.api.server.getServerStatus()
       setIsServerRunning(status.running)
       setServerPort(status.port)
+      setIpAddress(status.ipAddress)
     } catch (err) {
       console.error('Erro ao verificar status do servidor:', err)
     }
@@ -38,8 +47,15 @@ const TabletConnectionButton: React.FC = () => {
         // Iniciar o servidor
         const result = await window.api.server.startServer()
         if (result.success) {
+          // Definir as informações do servidor
           setIsServerRunning(true)
           setServerPort(result.port || 3000)
+          setIpAddress(result.ipAddress || '127.0.0.1')
+
+          // Enviar dados transformados para o servidor se disponíveis
+          if (transformedData && transformedData.length > 0) {
+            window.api.dataService.updateTransformedData(transformedData)
+          }
         } else {
           setError(result.error || 'Erro ao iniciar o servidor')
         }
@@ -63,8 +79,8 @@ const TabletConnectionButton: React.FC = () => {
         {loading
           ? 'Processando...'
           : isServerRunning
-          ? `Fechar Conexão Tablet (localhost:${serverPort})`
-          : 'Abrir Conexão Tablet'}
+            ? `Fechar Conexão Tablet (${ipAddress}:${serverPort})`
+            : 'Abrir Conexão Tablet'}
       </button>
 
       {isServerRunning && !error && (
@@ -79,13 +95,16 @@ const TabletConnectionButton: React.FC = () => {
           }}
         >
           <div>
-            ✅ Servidor rodando em <strong>http://localhost:{serverPort}</strong>
+            ✅ Servidor rodando em{' '}
+            <strong>
+              http://{ipAddress}:{serverPort}
+            </strong>
           </div>
           <div style={{ marginTop: '5px', fontSize: '12px' }}>
             <span>API Endpoints:</span>
             <ul style={{ marginLeft: '20px', marginTop: '5px' }}>
               <li>GET /api/status - Verificar status do servidor</li>
-              <li>GET /api/tratos - Obter lista de tratos</li>
+              <li>GET /api/tratos - Obter lista de tratos ({transformedData.length} registros)</li>
               <li>POST /api/tratos - Enviar novos tratos</li>
             </ul>
           </div>

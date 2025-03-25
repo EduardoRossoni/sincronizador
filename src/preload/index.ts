@@ -3,9 +3,14 @@ import { electronAPI } from '@electron-toolkit/preload'
 
 // Interface para os métodos relacionados ao servidor
 interface ServerAPI {
-  startServer: () => Promise<{ success: boolean; port?: number; error?: string }>
+  startServer: () => Promise<{ success: boolean; port?: number; ipAddress?: string; error?: string }>
   stopServer: () => Promise<{ success: boolean; error?: string }>
-  getServerStatus: () => Promise<{ running: boolean; port: number }>
+  getServerStatus: () => Promise<{ running: boolean; port: number; ipAddress: string }>
+}
+
+// Interface para os métodos relacionados ao DataService
+interface DataServiceAPI {
+  updateTransformedData: (data: unknown[]) => void
 }
 
 // Custom APIs for renderer
@@ -14,7 +19,11 @@ const api = {
     startServer: () => ipcRenderer.invoke('server:start'),
     stopServer: () => ipcRenderer.invoke('server:stop'),
     getServerStatus: () => ipcRenderer.invoke('server:status')
-  } as ServerAPI
+  } as ServerAPI,
+
+  dataService: {
+    updateTransformedData: (data: unknown[]) => ipcRenderer.send('data-service:update-transformed-data', data)
+  } as DataServiceAPI
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

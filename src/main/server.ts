@@ -1,14 +1,17 @@
 import express from 'express'
 import cors from 'cors'
-import { app } from 'electron'
-import { Server } from 'http' // <-- importar o tipo Server do 'http'
+import { app} from 'electron'
+import { Server } from 'http'
+import { networkInterfaces } from 'os'
 
 export class TabletServer {
   private app = express()
-  private server: Server | null = null // <-- substituir 'any' por 'Server | null'
+  private server: Server | null = null
   private port = 3000
   private isRunning = false
   private tratoData: unknown[] = []
+  // Armazenar dados transformados recebidos do renderer
+  private transformedData: unknown[] = []
 
   constructor() {
     this.app.use(cors())
@@ -17,9 +20,17 @@ export class TabletServer {
     this.setupRoutes()
   }
 
+  // Método para atualizar os dados transformados
+  updateTransformedData(data: unknown[]): void {
+    this.transformedData = data
+    console.log(`Dados transformados atualizados: ${this.transformedData.length} registros`)
+  }
+
   private setupRoutes(): void {
+    // Endpoint para obter dados dos tratos convertidos do DataService
     this.app.get('/api/tratos', (req, res) => {
-      res.json(this.tratoData)
+      // Retornar dados transformados diretamente
+      res.json(this.transformedData)
     })
 
     this.app.post('/api/tratos', (req, res) => {
@@ -47,7 +58,21 @@ export class TabletServer {
     })
   }
 
-  start(): Promise<number> {
+  // Obter endereço IP local
+  getLocalIpAddress(): string {
+    const nets = networkInterfaces()
+    for (const name of Object.keys(nets)) {
+      for (const net of nets[name] || []) {
+        // Pular interfaces de loopback e não IPv4
+        if (net.family === 'IPv4' && !net.internal) {
+          return net.address
+        }
+      }
+    }
+    return '127.0.0.1' // Fallback para localhost
+  }
+
+  start(): Promise<{ port: number; ipAddress: string }> {
     return new Promise((resolve, reject) => {
       if (this.isRunning) {
         reject(new Error('Servidor já está em execução na porta ' + this.port))
@@ -57,8 +82,9 @@ export class TabletServer {
       try {
         this.server = this.app.listen(this.port, () => {
           this.isRunning = true
-          console.log(`Servidor tablet iniciado na porta ${this.port}`)
-          resolve(this.port)
+          const ipAddress = this.getLocalIpAddress()
+          console.log(`Servidor tablet iniciado em ${ipAddress}:${this.port}`)
+          resolve({ port: this.port, ipAddress })
         })
 
         this.server.on('error', (err: Error) => {
@@ -101,7 +127,14 @@ export class TabletServer {
     return this.port
   }
 
+  getIpAddress(): string {
+    return this.getLocalIpAddress()
+  }
+
   clearData(): void {
     this.tratoData = []
   }
 }
+
+// Importação de BrowserWindow adicionada aqui para evitar erros de referência circular
+// import { BrowserWindow } from 'electron'

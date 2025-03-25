@@ -59,6 +59,9 @@ app.whenReady().then(() => {
   // Configurar manipuladores de IPC para o servidor
   configureServerIPC()
 
+  // Configurar IPC para comunicação com o DataService
+  configureDataServiceIPC()
+
   createWindow()
 
   app.on('activate', function () {
@@ -89,8 +92,12 @@ function configureServerIPC(): void {
   // Iniciar servidor
   ipcMain.handle('server:start', async () => {
     try {
-      const port = await tabletServer.start()
-      return { success: true, port }
+      const result = await tabletServer.start()
+      return {
+        success: true,
+        port: result.port,
+        ipAddress: result.ipAddress
+      }
     } catch (error) {
       console.error('Erro ao iniciar servidor:', error)
       return {
@@ -118,7 +125,17 @@ function configureServerIPC(): void {
   ipcMain.handle('server:status', () => {
     return {
       running: tabletServer.isServerRunning(),
-      port: tabletServer.getPort()
+      port: tabletServer.getPort(),
+      ipAddress: tabletServer.getIpAddress()
     }
+  })
+}
+
+// Configurar manipuladores IPC para o DataService
+function configureDataServiceIPC(): void {
+  // Receber dados transformados do DataService e armazená-los no servidor
+  ipcMain.on('data-service:update-transformed-data', (_, data) => {
+    // Atualizar os dados no servidor
+    tabletServer.updateTransformedData(data)
   })
 }
