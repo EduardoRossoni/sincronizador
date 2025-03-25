@@ -1,6 +1,7 @@
 import './assets/main.css'
 import BuscarDadosGepec from './components/BuscarDadosGepec'
 import DadosSalvosButton from './components/DadosSalvosButton';
+import TabletConnectionButton from './components/TabletConnectionButton';
 
 import './Main.css'
 
@@ -12,7 +13,7 @@ function App(): JSX.Element {
       <div className="buttons-container">
         <BuscarDadosGepec />
 
-        <button className="action-button">Abrir Conexão Tablet</button>
+        <TabletConnectionButton />
 
         <DadosSalvosButton />
       </div>

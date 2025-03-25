@@ -2,6 +2,10 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { TabletServer } from './server'
+
+// Instância global do servidor
+const tabletServer = new TabletServer()
 
 function createWindow(): void {
   // Create the browser window.
@@ -52,6 +56,9 @@ app.whenReady().then(() => {
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
 
+  // Configurar manipuladores de IPC para o servidor
+  configureServerIPC()
+
   createWindow()
 
   app.on('activate', function () {
@@ -70,5 +77,48 @@ app.on('window-all-closed', () => {
   }
 })
 
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.
+// Garantir que o servidor seja encerrado ao sair do aplicativo
+app.on('will-quit', async () => {
+  if (tabletServer.isServerRunning()) {
+    await tabletServer.stop()
+  }
+})
+
+// Configurar manipuladores IPC para o servidor
+function configureServerIPC(): void {
+  // Iniciar servidor
+  ipcMain.handle('server:start', async () => {
+    try {
+      const port = await tabletServer.start()
+      return { success: true, port }
+    } catch (error) {
+      console.error('Erro ao iniciar servidor:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      }
+    }
+  })
+
+  // Parar servidor
+  ipcMain.handle('server:stop', async () => {
+    try {
+      await tabletServer.stop()
+      return { success: true }
+    } catch (error) {
+      console.error('Erro ao parar servidor:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      }
+    }
+  })
+
+  // Verificar status do servidor
+  ipcMain.handle('server:status', () => {
+    return {
+      running: tabletServer.isServerRunning(),
+      port: tabletServer.getPort()
+    }
+  })
+}
